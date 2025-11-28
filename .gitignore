@@ -1,0 +1,83 @@
+# Backend .gitignore - common temporary and sensitive files
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+dist/
+build/
+.cache/
+.next/
+out/
+.env
+.env.*
+*.local
+coverage/
+coverage-final.json
+logs/
+*.log
+pids/
+*.pid
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+ENV/
+pip-wheel-metadata/
+.pytest_cache/
+
+# Java / JVM
+target/
+*.class
+*.jar
+*.war
+
+# Go
+bin/
+pkg/
+vendor/
+
+# Databases / runtime files
+*.sqlite3
+*.db
+*.sql
+*.log
+
+# Docker
+docker-compose.override.yml
+docker-compose.*.yml
+**/Dockerfile.*
+
+# IDEs and editors
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets and keys
+*.pem
+*.key
+*.crt
+*.pfx
+secrets/
+.envrc
+
+# Misc
+*.tmp
+*.temp
+dist-*/
