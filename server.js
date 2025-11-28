@@ -19,6 +19,7 @@ const uploadRoutes = require('./routes/uploadRoutes'); // <--- Import
 const sendNotification = require('./services/notificationService');
 // Import Database (just to ensure connection starts)
 const db = require("./config/db");
+const path = require("path");
 
 // Initialize App
 const app = express();
@@ -29,6 +30,12 @@ app.use(cors()); // Allow requests from React/React Native
 app.use(helmet()); // Security headers
 app.use(morgan("dev")); // Log requests to console
 app.use(express.json()); // Parse JSON data from frontend
+
+
+// Routes
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // -- ROUTES (We will add these in the next step) --
 app.use("/api/auth", authRoutes);
@@ -112,7 +119,8 @@ io.on("connection", (socket) => {
 });
 
 // -- START SERVER --
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3048;
 server.listen(PORT, () => {
+  console.log(`http://localhost:${PORT}`);
   console.log(`🚀 Server running on port ${PORT}`);
 });
