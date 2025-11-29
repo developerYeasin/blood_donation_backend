@@ -196,3 +196,23 @@ exports.likeComment = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+// DELETE MY POST
+exports.deletePost = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        // 1. Check ownership
+        const [post] = await db.execute('SELECT user_id FROM posts WHERE id = ?', [id]);
+        
+        if (post.length === 0) return res.status(404).json({ message: 'Post not found' });
+        if (post[0].user_id !== userId) return res.status(403).json({ message: 'Not authorized' });
+
+        // 2. Delete
+        await db.execute('DELETE FROM posts WHERE id = ?', [id]);
+        res.json({ message: 'Post deleted' });
+
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
