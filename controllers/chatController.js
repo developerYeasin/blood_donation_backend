@@ -1,5 +1,5 @@
-const db = require('../config/db');
-const sendNotification = require('../services/notificationService'); 
+const db = require("../config/db");
+const sendNotification = require("../services/notificationService");
 
 // Get My Conversations
 // exports.getConversations = async (req, res) => {
@@ -13,7 +13,7 @@ const sendNotification = require('../services/notificationService');
 //             SELECT
 //                 c.id as conversation_id,
 //                 c.type,
-                
+
 //                 -- LOGIC FOR NAME
 //                 CASE
 //                     WHEN c.type = 'group' THEN c.group_name
@@ -61,19 +61,18 @@ const sendNotification = require('../services/notificationService');
 //     }
 // };
 
-
 exports.getConversations = async (req, res) => {
-    try {
-        const currentUserId = req.user.id;
-        const page = parseInt(req.query.page) || 1;
-        const pageSize = parseInt(req.query.pageSize) || 10;
-        const offset = (page - 1) * pageSize;
-        const limit = pageSize + 1; 
-        
-        // Arguments array for the 5 placeholders: [user_id, user_id, user_id, limit, offset]
-        const args = [currentUserId, currentUserId, currentUserId, limit, offset];
+  try {
+    const currentUserId = req.user.id;
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = parseInt(req.query.pageSize) || 10;
+    const offset = (page - 1) * pageSize;
+    const limit = pageSize + 1;
 
-        const query = `
+    // Arguments array for the 5 placeholders: [user_id, user_id, user_id, limit, offset]
+    const args = [currentUserId, currentUserId, currentUserId, limit, offset];
+
+    const query = `
             WITH LastMessages AS (
                 -- CTE 1: Find the ID of the latest message for each conversation
                 SELECT
@@ -123,48 +122,74 @@ exports.getConversations = async (req, res) => {
             LIMIT ? OFFSET ? -- Placeholder 4 and 5
         `;
 
-        // *** THE CRITICAL CHANGE: Use db.query() instead of db.execute() ***
-        const [chats] = await db.query(query, args);
+    // *** THE CRITICAL CHANGE: Use db.query() instead of db.execute() ***
+    const [chats] = await db.query(query, args);
 
-        const hasMore = chats.length > pageSize;
-        if (hasMore) {
-            chats.pop(); // Remove the extra item used to check for more
-        }
-        res.json({ chats, hasMore, page, pageSize });
-    } catch (error) {
-        console.error(error);
-        // It's good practice to check if db.query returns the full error object structure
-        const errorMessage = error.sqlMessage || error.message; 
-        res.status(500).json({ message: errorMessage });
+    const hasMore = chats.length > pageSize;
+    if (hasMore) {
+      chats.pop(); // Remove the extra item used to check for more
     }
+    res.json({ chats, hasMore, page, pageSize });
+  } catch (error) {
+    console.error(error);
+    // It's good practice to check if db.query returns the full error object structure
+    const errorMessage = error.sqlMessage || error.message;
+    res.status(500).json({ message: errorMessage });
+  }
 };
 
 // Get Messages inside a specific Chat
+// exports.getMessages = async (req, res) => {
+//     try {
+//         const { conversationId } = req.params;
+//         const [messages] = await db.execute(
+//             `SELECT m.*, u.full_name as sender_name
+//              FROM messages m
+//              JOIN users u ON m.sender_id = u.id
+//              WHERE m.conversation_id = ?
+//              ORDER BY m.created_at ASC`,
+//             [conversationId]
+//         );
+//         res.json(messages);
+//     } catch (error) {
+//         res.status(500).json({ message: error.message });
+//     }
+// };
+
+// controllers/chatController.js
+
 exports.getMessages = async (req, res) => {
-    try {
-        const { conversationId } = req.params;
-        const [messages] = await db.execute(
-            `SELECT m.*, u.full_name as sender_name 
+  try {
+    const { conversationId } = req.params;
+
+    // UPDATED QUERY: Added 'u.avatar_url as sender_avatar'
+    const [messages] = await db.execute(
+      `SELECT 
+                m.*, 
+                u.full_name as sender_name, 
+                u.avatar_url as sender_avatar 
              FROM messages m 
              JOIN users u ON m.sender_id = u.id 
              WHERE m.conversation_id = ? 
-             ORDER BY m.created_at ASC`, 
-            [conversationId]
-        );
-        res.json(messages);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
+             ORDER BY m.created_at ASC`,
+      [conversationId]
+    );
+
+    res.json(messages);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 // NEW: Start a chat with a specific user
 exports.startChat = async (req, res) => {
-    try {
-        const myId = req.user.id;
-        const targetId = req.body.target_user_id;
+  try {
+    const myId = req.user.id;
+    const targetId = req.body.target_user_id;
 
-        // 1. Check if a private conversation already exists
-        // We look for a conversation that has BOTH users as participants
-        const [existing] = await db.execute(`
+    // 1. Check if a private conversation already exists
+    // We look for a conversation that has BOTH users as participants
+    const [existing] = await db.execute(
+      `
             SELECT c.id
             FROM conversations c
             JOIN conversation_participants cp1 ON c.id = cp1.conversation_id
@@ -173,23 +198,28 @@ exports.startChat = async (req, res) => {
             AND cp1.user_id = ?
             AND cp2.user_id = ?
             LIMIT 1
-        `, [myId, targetId]);
+        `,
+      [myId, targetId]
+    );
 
-        if (existing.length > 0) {
-            // FOUND EXISTING! Return it immediately.
-            return res.json({ conversation_id: existing[0].id, isNew: false });
-        }
-
-        // 2. If NOT exists, create a new one
-        const [newConv] = await db.execute("INSERT INTO conversations (type) VALUES ('private')");
-        const convId = newConv.insertId;
-
-        await db.execute("INSERT INTO conversation_participants (conversation_id, user_id) VALUES (?, ?), (?, ?)",
-            [convId, myId, convId, targetId]);
-
-        res.json({ conversation_id: convId, isNew: true });
-
-    } catch (error) {
-        res.status(500).json({ message: error.message });
+    if (existing.length > 0) {
+      // FOUND EXISTING! Return it immediately.
+      return res.json({ conversation_id: existing[0].id, isNew: false });
     }
+
+    // 2. If NOT exists, create a new one
+    const [newConv] = await db.execute(
+      "INSERT INTO conversations (type) VALUES ('private')"
+    );
+    const convId = newConv.insertId;
+
+    await db.execute(
+      "INSERT INTO conversation_participants (conversation_id, user_id) VALUES (?, ?), (?, ?)",
+      [convId, myId, convId, targetId]
+    );
+
+    res.json({ conversation_id: convId, isNew: true });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };

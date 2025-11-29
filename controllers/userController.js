@@ -159,55 +159,43 @@ exports.searchDonors = async (req, res) => {
 // 3. Update Profile (Bio, City, Availability, Photo)
 // 3. Update Profile
 exports.updateProfile = async (req, res) => {
-  try {
-    const {
-      full_name,
-      bio,
-      city,
-      is_available_for_donate,
-      phone_number,
-      avatar_url,
-      cover_image_url,
-    } = req.body;
-
-    // We simply update the avatar_url string provided by the frontend
-    // If avatar_url is undefined, we keep the old one (using SQL logic or checks)
-
-    // This query updates fields only if they are provided (or overwrites them)
-    // Note: For simplicity, we assume frontend sends all current values + changes
-    await db.execute(
-      `UPDATE users SET
+    try {
+        // Add cover_image_url to the destructured body
+        const { full_name, bio, city, is_available_for_donate, phone_number, avatar_url, cover_image_url } = req.body;
+        
+        await db.execute(
+            `UPDATE users SET
                 full_name=?,
                 bio=?,
                 city=?,
                 is_available_for_donate=?,
                 phone_number=?,
-                cover_image_url=?,
-                avatar_url=?
+                avatar_url=?,
+                cover_image_url=?  -- <--- NEW FIELD
              WHERE id=?`,
-      [
-        full_name,
-        bio,
-        city,
-        is_available_for_donate,
-        phone_number,
-        cover_image_url,
-        avatar_url, // URL string from frontend
-        req.user.id,
-      ]
-    );
+            [
+                full_name,
+                bio,
+                city,
+                is_available_for_donate,
+                phone_number,
+                avatar_url,
+                cover_image_url,   // <--- NEW VALUE
+                req.user.id
+            ]
+        );
 
-    // Fetch updated user to return to frontend
-    const [updatedUser] = await db.execute(
-      "SELECT id, full_name, email, phone_number, blood_group, city, bio, avatar_url, is_available_for_donate, created_at FROM users WHERE id = ?",
-      [req.user.id]
-    );
+        // Fetch updated user including the new cover_image_url
+        const [updatedUser] = await db.execute(
+            'SELECT id, full_name, email, phone_number, blood_group, city, bio, avatar_url, cover_image_url, is_available_for_donate, created_at FROM users WHERE id = ?',
+            [req.user.id]
+        );
 
-    res.json({ message: "Profile updated successfully", user: updatedUser[0] });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: error.message });
-  }
+        res.json({ message: 'Profile updated successfully', user: updatedUser[0] });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: error.message });
+    }
 };
 
 // 4. Get User's Own Posts (Timeline)
